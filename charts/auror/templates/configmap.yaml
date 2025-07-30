@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auror-config
+data:
+  docker-config.json: | 
+    {{- toJson .Values.dockerConfig | nindent 4 }}
+  cosign.pub: |
+    {{- .Values.cosign.publicKey | nindent 4 }}

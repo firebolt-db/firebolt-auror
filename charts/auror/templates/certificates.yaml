@@ -1,0 +1,28 @@
+{{- if .Values.certificate.enabled -}}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: auror-certificates
+  namespace: {{ .Release.Namespace | default "firebolt-auror" }}
+  labels:
+    {{- include "auror.labels" . | nindent 4 }}
+spec:
+  secretName: auror-certificates
+  duration: 2160h0m0s
+  renewBefore: 360h0m0s
+  dnsNames:
+    - {{ .Release.Name }}.{{ .Release.Namespace | default "firebolt-auror" }}
+    - {{ .Release.Name }}.{{ .Release.Namespace | default "firebolt-auror" }}.svc
+    - {{ include "auror.fullname" . }}.{{ .Release.Namespace | default "firebolt-auror" }}.svc
+    - {{ .Release.Name }}.{{ .Release.Namespace | default "firebolt-auror" }}.svc.cluster.local
+  issuerRef:
+    name: ca-root
+    kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  usages:
+    - client auth
+    - server auth
+{{- end }}

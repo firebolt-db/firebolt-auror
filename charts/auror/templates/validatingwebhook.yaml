@@ -1,0 +1,35 @@
+{{- if .Values.validatingWebhook.enabled -}}
+---
+kind: ValidatingWebhookConfiguration
+apiVersion: admissionregistration.k8s.io/v1
+metadata:
+  name: {{ include "auror.fullname" . }}
+  annotations:
+    # Inject from ca-root Certificate in devops namespace (our cert-manager namespace)
+    cert-manager.io/inject-ca-from: devops/ca-root
+  labels:
+    {{- include "auror.labels" . | nindent 4 }}
+webhooks:
+  - name: auror.{{ .Release.Namespace | default "firebolt-auror" }}.svc
+    clientConfig:
+      service:
+        namespace: {{ .Release.Namespace | default "firebolt-auror" }}
+        name: {{ include "auror.fullname" . }}
+        path: /validate
+        port: {{ .Values.service.port }}
+      {{- if .Values.validatingWebhook.caBundle }}
+      caBundle: {{ .Values.validatingWebhook.caBundle  }}
+      {{- end }}
+    rules:
+      {{- range .Values.validatingWebhook.rules }}
+      - apiGroups:{{ toYaml .apiGroups | nindent 10 }}
+        apiVersions:{{ toYaml .apiVersions | nindent 10 }}
+        operations:{{ toYaml .operations | nindent 10 }}
+        resources:{{ toYaml .resources | nindent 10 }}
+      {{- end }}
+    sideEffects: None
+    failurePolicy: {{ .Values.validatingWebhook.failurePolicy }}
+    matchPolicy: Equivalent
+    timeoutSeconds: {{ .Values.validatingWebhook.timeoutSeconds }}
+    admissionReviewVersions: ["v1"]
+{{- end }}

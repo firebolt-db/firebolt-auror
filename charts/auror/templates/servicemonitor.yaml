@@ -1,0 +1,16 @@
+---
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "auror.fullname" . }}
+  namespace: {{ .Release.Namespace | default "firebolt-auror" }}
+  labels:
+    {{- include "auror.labels" . | nindent 4 }}
+spec:
+  endpoints:
+    {{- values .Values.serviceMonitor.endpoints | toYaml | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "auror.selectorLabels" . | nindent 6 }}
+{{- end }}

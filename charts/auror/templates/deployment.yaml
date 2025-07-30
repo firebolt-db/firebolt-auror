@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "auror.fullname" . }}
+  labels:
+    {{- include "auror.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "auror.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "auror.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "auror.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - -mode={{.Values.args.mode}}
+            - -cert={{.Values.args.cert}}
+            - -key={{.Values.args.key}}
+            - -port={{ .Values.service.port }}
+            - -adm-port={{ .Values.service.metrics.port }}
+            - -public-key={{.Values.args.publicKey}}
+            - -registry={{.Values.args.registry}}
+            - -log-level={{.Values.args.logLevel}}
+            - -digest-cache-size={{.Values.args.digestCacheSize}}
+            - -digest-cache-ttl={{.Values.args.digestCacheTTL}}
+            - -tag-cache-size={{.Values.args.tagCacheSize}}
+            - -tag-cache-ttl={{.Values.args.tagCacheTTL}}
+            - -owner-cache-size={{.Values.args.ownerCacheSize}}
+            - -owner-cache-ttl={{.Values.args.ownerCacheTTL}}
+            - -use-tag-cache={{.Values.args.useTagCache}}
+          {{- if .Values.env.enabled }}
+          env:
+            - name: AWS_ROLE_ARN
+              value: {{ .Values.env.awsRoleArn }}
+          {{- end }}
+          {{- if and .Values.env.kind.enabled (not .Values.env.enabled) }}
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_REGION
+              value: us-east-1
+            - name: AWS_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: AWS_SESSION_TOKEN
+            - name: OFFICER_JOB
+              value: "cosign-review"
+            - name: OFFICER_SERVICE
+              value: "auror.firebolt-auror.svc"
+            - name: OFFICER_RESOURCE_KIND
+              value: "statefulset"
+            - name: OFFICER_PORT
+              value: "8443"
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metrics.port }}
+              protocol: TCP
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: auror-certs
+              mountPath: "/etc/auror/certs"
+              readOnly: true
+            - mountPath: /.docker/config.json
+              name: auror-config-volume
+              subPath: config.json
+            - mountPath: /cosign/cosign.pub
+              name: auror-config-volume
+              subPath: cosign.pub
+          {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: auror-certs
+          secret:
+            secretName: auror-certificates
+        - name: auror-config-volume
+          configMap:
+            name: auror-config
+            items:
+            - key: docker-config.json
+              path: docker-config.json
+            - key: cosign.pub
+              path: cosign.pub
+      {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

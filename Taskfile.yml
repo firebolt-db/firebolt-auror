@@ -1,0 +1,77 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task -a
+    silent: true
+
+  dependencies-install-mac:
+    desc: Install dependencies
+    cmds:
+      - brew install kind
+      - brew install helm
+      - brew install tilt-dev/tap/ctlptl
+      - brew install golangci-lint
+
+  tidy:
+    desc: update dependencies and tidy go modules 
+    cmds:
+      # - go get -u -v ./...
+      - go mod tidy
+  
+  lint:
+    desc: Run linters
+    cmds:
+      - golangci-lint run
+
+  dev-create:
+    desc: create a kind cluster (change to kind context)
+    cmds:
+      - ctlptl create registry ctlptl-registry --port=5005
+      - ctlptl create cluster kind --registry=ctlptl-registry
+      - kubectl config use-context kind-kind
+      - kubectl create namespace firebolt-auror
+
+  dev-delete:
+    desc: delete a kind cluster
+    cmds:
+      - ctlptl delete cluster kind
+      - ctlptl delete registry ctlptl-registry
+
+  auror-deploy:
+    desc: Deploy auror
+    cmds:
+      - docker build -t firebolt-auror/auror:{{.VERSION}} -f Dockerfiles/auror/Dockerfile .
+      - docker tag firebolt-auror/auror:{{.VERSION}} localhost:5005/firebolt-auror/auror:{{.VERSION}}
+      - docker push localhost:5005/firebolt-auror/auror:{{.VERSION}}
+      - kubectl config use-context kind-kind
+      - bash scripts/auror-creds.sh
+      - helm template auror charts/auror --set image.repository="ctlptl-registry:5000/firebolt-auror/auror" --set image.tag={{.VERSION}} --set validatingWebhook.caBundle="$(cat tlsAuror.crt | base64 )" -f values.kind.yaml --namespace firebolt-auror > manifests-auror.yaml
+      - kubectl apply -f manifests-auror.yaml -n firebolt-auror
+    vars:
+      VERSION:
+        sh: openssl rand -hex 4
+
+  auror-delete:
+    desc: Delete auror
+    cmds:
+      - kubectl delete -f manifests-auror.yaml -n firebolt-auror
+  
+  auror-test-cosign:
+    desc: Test auror with cosign review
+    cmds:
+      - kubectl port-forward -n firebolt-auror service/auror 8443:8443 &
+      - sleep 3
+      - go run ./cmd/officer/main.go -job cosign-review -service localhost -port 8443 -kind pod -image digest -skip
+      - pkill -f "kubectl port-forward"
+
+  auror-test-warmup:
+    desc: Warm up auror cache with test images
+    cmds:
+      - kubectl port-forward -n firebolt-auror service/auror 8443:8443 &
+      - sleep 3
+      - go run ./cmd/officer/main.go -job warmup -service localhost -port 8443 -images "123456789123.dkr.ecr.us-east-1.amazonaws.com/nginx:1.27.2-alpine,123456789123.dkr.ecr.us-east-1.amazonaws.com/busybox:1.36.1"
+      - pkill -f "kubectl port-forward"
