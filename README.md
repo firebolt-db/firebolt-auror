@@ -9,7 +9,7 @@ Firebolt Auror is a Kubernetes Image Admission Controller
 - Ensures only signed images are deployed
 - Supports both deny and audit modes for flexible deployment
 
-### �� **Registry Control**
+### 🛡️ **Registry Control**
 - Restricts deployments to specified AWS ECR registries
 - Prevents unauthorized external images from being deployed
 - Configurable registry allowlist
@@ -72,14 +72,11 @@ aws ecr get-login-password --region us-east-1
 ### Testing
 
 ```bash
-# Test admission controller
-./cmd/officer/officer -job admission-test
+# Test Auror with cosign review
+task auror-test-cosign
 
-# Test with specific resource type
-./cmd/officer/officer -job cosign-review -kind deployment -image digest
-
-# Warm up cache with images
-./cmd/officer/officer -job warmup -images "your-registry/image:tag"
+# Warm up Auror cache with test images
+task auror-test-warmup
 ```
 
 ### Monitoring

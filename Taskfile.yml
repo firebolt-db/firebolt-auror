@@ -73,5 +73,6 @@ tasks:
     cmds:
       - kubectl port-forward -n firebolt-auror service/auror 8443:8443 &
       - sleep 3
+      # Replace with your ECR registry address
       - go run ./cmd/officer/main.go -job warmup -service localhost -port 8443 -images "123456789123.dkr.ecr.us-east-1.amazonaws.com/nginx:1.27.2-alpine,123456789123.dkr.ecr.us-east-1.amazonaws.com/busybox:1.36.1"
       - pkill -f "kubectl port-forward"
