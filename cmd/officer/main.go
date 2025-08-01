@@ -301,6 +301,7 @@ func generateResourceConfig(resourceKind, imageFormat string) ResourceConfig {
 
 	var nginxImage, busyboxImage string
 
+	// Replace with your ECR registry address and images
 	switch imageFormat {
 	case "digest":
 		nginxImage = "123456789123.dkr.ecr.us-east-1.amazonaws.com/nginx:1.27.2-alpine@sha256:1234567890"

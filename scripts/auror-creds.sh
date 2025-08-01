@@ -2,6 +2,7 @@
 
 CREDS=$(aws configure export-credentials)
 namespace="firebolt-auror"
+# Replace with your ECR registry address
 accountID="123456789123"
 PASSWORD=$(aws ecr get-login-password --region us-east-1)
 
