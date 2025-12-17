@@ -30,6 +30,7 @@ jobs:
         uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611  # v2.0.0
       - name: Test auror with internal officer
         run: |
+          task dependencies-install-ubuntu
           task dev-create
           task auror-deploy
           task auror-delete
