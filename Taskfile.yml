@@ -48,17 +48,26 @@ tasks:
       - docker tag firebolt-auror/auror:{{.VERSION}} localhost:5005/firebolt-auror/auror:{{.VERSION}}
       - docker push localhost:5005/firebolt-auror/auror:{{.VERSION}}
       - kubectl config use-context kind-kind
-      - bash scripts/auror-creds.sh
-      - helm template auror charts/auror --set image.repository="ctlptl-registry:5000/firebolt-auror/auror" --set image.tag={{.VERSION}} --set validatingWebhook.caBundle="$(cat tlsAuror.crt | base64 )" -f values.kind.yaml --namespace firebolt-auror > manifests-auror.yaml
-      - kubectl apply -f manifests-auror.yaml -n firebolt-auror
+      - bash scripts/auror-creds.sh open-registry {{.VERSION}}
+      - helm template auror charts/auror --set image.repository="ctlptl-registry:5000/firebolt-auror/auror" --set image.tag={{.VERSION}} --set validatingWebhook.caBundle="$(cat tmp-deployment-files/tlsAuror.crt | base64 )" --set env.kind.openregistry.randomName="{{.VERSION}}" -f tmp-deployment-files/values.kind.yaml --namespace firebolt-auror > tmp-deployment-files/manifests-auror.yaml
+      - kubectl apply -n firebolt-auror -f tmp-deployment-files/manifests-auror.yaml
+      - sleep 10
+      - kubectl get pods -n firebolt-auror
+      - kubectl exec -ti -n firebolt-auror $(kubectl get pods -n firebolt-auror | grep auror | awk '{print $1}') -- /bin/officer
     vars:
       VERSION:
         sh: openssl rand -hex 4
 
+  auror-test-officer:
+    desc: Test auror with internal officer
+    cmds: 
+      - kubectl exec -ti -n firebolt-auror $(kubectl get pods -n firebolt-auror | grep auror | awk '{print $1}') -- /bin/officer
+
   auror-delete:
     desc: Delete auror
     cmds:
-      - kubectl delete -f manifests-auror.yaml -n firebolt-auror
+      - kubectl delete -n firebolt-auror -f tmp-deployment-files/manifests-auror.yaml
+      - rm -rf tmp-deployment-files
   
   auror-test-cosign:
     desc: Test auror with cosign review

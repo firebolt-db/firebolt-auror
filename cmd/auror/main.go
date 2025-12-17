@@ -40,10 +40,10 @@ func main() {
 	certFile := flag.String("cert", "/certs/tls.crt", "File containing the x509 Certificate for HTTPS")
 	keyFile := flag.String("key", "/certs/tls.key", "File containing the x509 private key for HTTPS")
 	publicKeyPath := flag.String("public-key", "/cosign/cosign.pub", "Path to the public key file")
-	provider := flag.String("provider", cosign.ProviderAWS, "Provider for the registry: 'aws' or 'open-registry'. Lower case is required.")
+	provider := flag.String("provider", cosign.ProviderOpenRegistry, "Provider for the registry: 'aws' or 'open-registry'. Lower case is required.")
 	inCluster := flag.Bool("in-cluster", false, "Whether the Auror is in-cluster")
 	mode := flag.String("mode", ModeDeny, "Auror admission controller operation mode: 'deny' or 'audit'")
-	registry := flag.String("registry", "123456789123.dkr.ecr.us-east-1.amazonaws.com", "Comma-separated list of allowed registries")
+	registry := flag.String("registry", "ttl.sh/", "Comma-separated list of allowed registries")
 	logLevel := flag.String("log-level", LogLevelInfo, "log level: info or debug")
 
 	digestCacheSize := flag.Int("digest-cache-size", 1000, "Size of the image digest cache")

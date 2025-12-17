@@ -37,7 +37,7 @@ func run() error {
 	resourceKind := flag.String("kind", "pod", "[cosign-review flag] Resource kind to test: [pod, deployment, replicaset, daemonset, statefulset, job, cronjob]")
 	imageFormat := flag.String("image", "digest", "[cosign-review flag] Image format to use: [default, digest, unsigned]")
 	images := flag.String("images", "", "Comma-separated list of images to warm up the cache")
-
+	randomName := flag.String("random-name", "", "Random name to use for the test")
 	flag.Parse()
 	c := Client{
 		Web: &http.Client{},
@@ -54,6 +54,14 @@ func run() error {
 	envRresourceKind := os.Getenv("OFFICER_RESOURCE_KIND")
 	if envRresourceKind != "" {
 		resourceKind = &envRresourceKind
+	}
+	envImageFormat := os.Getenv("OFFICER_IMAGE_FORMAT")
+	if envImageFormat != "" {
+		imageFormat = &envImageFormat
+	}
+	envRandomName := os.Getenv("OFFICER_RANDOM_NAME")
+	if envRandomName != "" {
+		randomName = &envRandomName
 	}
 	envPort := os.Getenv("OFFICER_PORT")
 	if envPort != "" {
@@ -82,7 +90,7 @@ func run() error {
 				},
 			}
 		}
-		c.CosignReview(*protocol, *service, *port, *resourceKind, *imageFormat)
+		c.CosignReview(*protocol, *service, *port, *resourceKind, *imageFormat, *randomName)
 	case "warmup":
 		if *skip {
 			c.Web.Transport = &http.Transport{
@@ -234,9 +242,9 @@ func (c Client) WarmUp(protocol, service string, port int, images string) {
 	}
 }
 
-func (c Client) CosignReview(protocol, service string, port int, resourceKind, imageFormat string) {
+func (c Client) CosignReview(protocol, service string, port int, resourceKind, imageFormat, randomName string) {
 
-	resourceConfig := generateResourceConfig(resourceKind, imageFormat)
+	resourceConfig := generateResourceConfig(resourceKind, imageFormat, randomName)
 
 	admissionReview := admissionv1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
@@ -297,7 +305,7 @@ func (c Client) CosignReview(protocol, service string, port int, resourceKind, i
 }
 
 // creates the appropriate resource configuration based on the kind and image format
-func generateResourceConfig(resourceKind, imageFormat string) ResourceConfig {
+func generateResourceConfig(resourceKind, imageFormat, randomName string) ResourceConfig {
 
 	var nginxImage, busyboxImage string
 
@@ -309,6 +317,9 @@ func generateResourceConfig(resourceKind, imageFormat string) ResourceConfig {
 	case "unsigned":
 		nginxImage = "123456789123.dkr.ecr.us-east-1.amazonaws.com/nginx:1.27.0-alpine-amd"
 		busyboxImage = "123456789123.dkr.ecr.us-east-1.amazonaws.com/busybox:1.35.0-test-dont-use"
+	case "open-registry":
+		nginxImage = fmt.Sprintf("ttl.sh/firebolt-auror-auror-%s:1h", randomName)
+		busyboxImage = fmt.Sprintf("ttl.sh/firebolt-auror-auror-%s:1h", randomName)
 	default:
 		nginxImage = "123456789123.dkr.ecr.us-east-1.amazonaws.com/nginx:1.27.2-alpine"
 		busyboxImage = "123456789123.dkr.ecr.us-east-1.amazonaws.com/busybox:1.36.1"
