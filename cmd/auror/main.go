@@ -21,11 +21,13 @@ import (
 	"github.com/firebolt-db/firebolt-auror/pkg/webhook/admission"
 	"github.com/firebolt-db/firebolt-auror/pkg/webhook/cosign"
 	"github.com/firebolt-db/firebolt-auror/pkg/webhook/metrics"
+)
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
-	"github.com/aws/aws-sdk-go-v2/service/ecr"
+const (
+	ModeAudit     = "audit"
+	ModeDeny      = "deny"
+	LogLevelInfo  = "info"
+	LogLevelDebug = "debug"
 )
 
 func main() {
@@ -38,10 +40,11 @@ func main() {
 	certFile := flag.String("cert", "/certs/tls.crt", "File containing the x509 Certificate for HTTPS")
 	keyFile := flag.String("key", "/certs/tls.key", "File containing the x509 private key for HTTPS")
 	publicKeyPath := flag.String("public-key", "/cosign/cosign.pub", "Path to the public key file")
-	awsRegion := flag.String("aws-region", "us-east-1", "AWS region for ECR access")
-	mode := flag.String("mode", "deny", "Auror admission controller operation mode: 'deny' or 'audit'")
+	provider := flag.String("provider", cosign.ProviderAWS, "Provider for the registry: 'aws' or 'open-registry'. Lower case is required.")
+	inCluster := flag.Bool("in-cluster", false, "Whether the Auror is in-cluster")
+	mode := flag.String("mode", ModeDeny, "Auror admission controller operation mode: 'deny' or 'audit'")
 	registry := flag.String("registry", "123456789123.dkr.ecr.us-east-1.amazonaws.com", "Comma-separated list of allowed registries")
-	logLevel := flag.String("log-level", "info", "log level: info or debug")
+	logLevel := flag.String("log-level", LogLevelInfo, "log level: info or debug")
 
 	digestCacheSize := flag.Int("digest-cache-size", 1000, "Size of the image digest cache")
 	digestCacheTTL := flag.Int("digest-cache-ttl", 12, "Time-to-live for the image digest cache in hours")
@@ -52,76 +55,38 @@ func main() {
 	useTagCache := flag.Bool("use-tag-cache", true, "Enable caching by image tags in addition to digests")
 
 	flag.Parse()
-	if *mode != "deny" && *mode != "audit" {
-		logger.Error("Invalid mode", "mode", *mode)
-	}
 	registries := strings.Split(*registry, ",")
 	// Trim spaces from each registry
 	for i := range registries {
 		registries[i] = strings.TrimSpace(registries[i])
 	}
 	switch *logLevel {
-	case "debug":
+	case LogLevelDebug:
 		appLogLevel.Set(slog.LevelDebug)
 	default:
 		appLogLevel.Set(slog.LevelInfo)
 	}
 	logger.Info("Starting up", "log-level", *logLevel)
+	if *mode != ModeDeny && *mode != ModeAudit {
+		logger.Error("Invalid mode", "mode", *mode)
+	}
+	if *provider != cosign.ProviderAWS && *provider != cosign.ProviderOpenRegistry {
+		logger.Error("Invalid provider", "provider", *provider)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	logger.Info("Starting auror admission controller", "mode", *mode)
 
-	// Load AWS configuration
-	logger.Info("Loading AWS configuration for region", "region", *awsRegion)
-
-	awsRoleArn := os.Getenv("AWS_ROLE_ARN")
-	var cfg aws.Config
-	if awsRoleArn != "" {
-		logger.Info("Assuming role", "arn", awsRoleArn)
-		cf, err := config.LoadDefaultConfig(context.Background(),
-			config.WithRegion(*awsRegion),
-			config.WithAssumeRoleCredentialOptions(func(options *stscreds.AssumeRoleOptions) {
-				options.RoleARN = awsRoleArn
-			}),
-		)
-		if err != nil {
-			logger.Error("Unable to load AWS configuration with AssumeRole", "error", err)
-			os.Exit(1)
-		}
-		cfg = cf
-		// Verify AWS credentials
-		creds, err := cfg.Credentials.Retrieve(context.Background())
-		if err != nil {
-			logger.Error("Failed to retrieve AWS credentials", "error", err)
-			os.Exit(1)
-		}
-		logger.Info("Successfully loaded AWS credentials with AssumeRole",
-			"accessKeyID", creds.AccessKeyID,
-			"expires", creds.Expires,
-			"canExpire", creds.CanExpire)
-	} else {
-		cf, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(*awsRegion))
-		if err != nil {
-			logger.Error("Unable to load AWS configuration", "error", err)
-			os.Exit(1)
-		}
-		cfg = cf
-		logger.Info("Successfully loaded AWS configuration", "region", *awsRegion)
-	}
-	logger.Info("AWS configuration loaded successfully")
-
-	// Create ECR client
-	ecrClient := ecr.NewFromConfig(cfg)
-
 	verifierConfig := cosign.VerifierConfig{
 		PublicKeyPath: *publicKeyPath,
 		HashAlgorithm: crypto.SHA256,
-		Region:        *awsRegion,
-		EcrClient:     ecrClient,
+		Provider:      *provider,
+		InCluster:     *inCluster,
+		Registries:    registries,
 		Logger:        logger,
 	}
-	verifier, err := cosign.NewVerifier(verifierConfig)
+	verifier, err := cosign.NewVerifier(ctx, verifierConfig)
 	if err != nil {
 		logger.Error("Failed to create verifier", "error", err)
 		os.Exit(1)

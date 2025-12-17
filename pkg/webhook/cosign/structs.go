@@ -3,24 +3,27 @@ package cosign
 import (
 	"crypto"
 	"log/slog"
-	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/sigstore/sigstore/pkg/signature"
+)
+
+const (
+	ProviderAWS          = "aws"
+	ProviderOpenRegistry = "open-registry"
 )
 
 // add expiration data of token
 // add token itself also
 // also the publickey,
 type VerifierConfig struct {
-	PublicKeyPath string
-	PublicKey     signature.Verifier
-	HashAlgorithm crypto.Hash
-	Region        string
-	EcrClient     *ecr.Client
-	Logger        *slog.Logger
-	ExpireTime    time.Time
-	Token         string
+	PublicKeyPath  string
+	PublicKey      signature.Verifier
+	HashAlgorithm  crypto.Hash
+	Provider       string
+	InCluster      bool
+	Registries     []string
+	RegistryClient RegistryClient
+	Logger         *slog.Logger
 }
 
 type Verifier struct {
