@@ -1,8 +1,10 @@
 FROM golang:1.24.5 AS builder
 
 RUN mkdir -p /go/src/github.com/firebolt-db/firebolt-auror/cmd/auror
+RUN mkdir -p /go/src/github.com/firebolt-db/firebolt-auror/cmd/officer
 COPY go.* /go/src/github.com/firebolt-db/firebolt-auror/
 COPY cmd/auror/*.go /go/src/github.com/firebolt-db/firebolt-auror/cmd/auror/
+COPY cmd/officer/*.go /go/src/github.com/firebolt-db/firebolt-auror/cmd/officer/
 
 RUN mkdir -p /go/src/github.com/firebolt-db/firebolt-auror/pkg/webhook/admission
 RUN mkdir -p /go/src/github.com/firebolt-db/firebolt-auror/pkg/webhook/cosign
@@ -20,10 +22,12 @@ WORKDIR /go/src/github.com/firebolt-db/firebolt-auror
 
 RUN go mod download
 RUN go build -o auror cmd/auror/*
+RUN go build -o officer cmd/officer/*
 
 FROM gcr.io/distroless/base-debian12:latest
 
 COPY --from=builder /go/src/github.com/firebolt-db/firebolt-auror/auror /bin/auror
+COPY --from=builder /go/src/github.com/firebolt-db/firebolt-auror/officer /bin/officer
 
 USER 65534
 

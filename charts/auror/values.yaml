@@ -127,7 +127,10 @@ env:
   enabled: false
   awsRoleArn: "arn:aws:iam::123456789123:role/firebolt-auror-auror"
   kind:
-    enabled: false
+    openregistry:
+      enabled: false
+    aws:
+      enabled: false
 
 
 args:
@@ -139,7 +142,8 @@ args:
   cert: "/etc/auror/certs/tls.crt"
   key: "/etc/auror/certs/tls.key"
   publicKey: "/cosign/cosign.pub"
-  registry: "123456789123.dkr.ecr.us-east-1.amazonaws.com"
+  provider: "open-registry"
+  registry: "ttl.sh/"
   logLevel: "info"
   # number of cache entries
   digestCacheSize: 1000

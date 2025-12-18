@@ -48,6 +48,7 @@ spec:
             - -adm-port={{ .Values.service.metrics.port }}
             - -public-key={{.Values.args.publicKey}}
             - -registry={{.Values.args.registry}}
+            - -provider={{.Values.args.provider}}
             - -log-level={{.Values.args.logLevel}}
             - -digest-cache-size={{.Values.args.digestCacheSize}}
             - -digest-cache-ttl={{.Values.args.digestCacheTTL}}
@@ -61,7 +62,7 @@ spec:
             - name: AWS_ROLE_ARN
               value: {{ .Values.env.awsRoleArn }}
           {{- end }}
-          {{- if and .Values.env.kind.enabled (not .Values.env.enabled) }}
+          {{- if and .Values.env.kind.aws.enabled (not .Values.env.enabled) }}
           env:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
@@ -80,6 +81,21 @@ spec:
                 secretKeyRef:
                   name: aws-credentials
                   key: AWS_SESSION_TOKEN
+            - name: OFFICER_JOB
+              value: "cosign-review"
+            - name: OFFICER_SERVICE
+              value: "auror.firebolt-auror.svc"
+            - name: OFFICER_RESOURCE_KIND
+              value: "statefulset"
+            - name: OFFICER_PORT
+              value: "8443"
+          {{- end }}
+          {{- if and .Values.env.kind.openregistry.enabled (not .Values.env.enabled) }}
+          env:
+            - name: OFFICER_RANDOM_NAME
+              value: "{{ .Values.env.kind.openregistry.randomName }}"
+            - name: OFFICER_IMAGE_FORMAT
+              value: "open-registry"
             - name: OFFICER_JOB
               value: "cosign-review"
             - name: OFFICER_SERVICE

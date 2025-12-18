@@ -22,7 +22,22 @@ jobs:
           cache: false
       # https://github.com/golangci/golangci-lint-action/issues/953
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@1481404843c368bc19ca9406f87d6e0fc97bdcfd  # v7.0.0
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20  # v9.2.0
         with:
-          version: v2.0
+          version: v2.2
           args: --timeout=10m
+      - name: Install Task
+        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611  # v2.0.0
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20  # v3.5.0
+      - name: Install ctlptl
+        run: |
+          export CTLPTL_VERSION="0.8.43"
+          curl -fsSL https://github.com/tilt-dev/ctlptl/releases/download/v${CTLPTL_VERSION}/ctlptl.${CTLPTL_VERSION}.linux.x86_64.tar.gz | sudo tar -xzv -C /usr/local/bin ctlptl
+      - name: Test auror with internal officer
+        run: |
+          task dev-create
+          task auror-deploy
+          task auror-test-officer || task auror-logs
+          task auror-delete
+          task dev-delete
