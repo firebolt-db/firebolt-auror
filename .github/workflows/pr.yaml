@@ -36,5 +36,6 @@ jobs:
         run: |
           task dev-create
           task auror-deploy
+          task auror-test-officer || task auror-logs
           task auror-delete
           task dev-delete
