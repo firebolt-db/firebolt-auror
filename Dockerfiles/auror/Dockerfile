@@ -1,4 +1,4 @@
-FROM golang:1.24.5 AS builder
+FROM golang:1.27.3 AS builder
 
 RUN mkdir -p /go/src/github.com/firebolt-db/firebolt-auror/cmd/auror
 COPY go.* /go/src/github.com/firebolt-db/firebolt-auror/
@@ -21,7 +21,7 @@ WORKDIR /go/src/github.com/firebolt-db/firebolt-auror
 RUN go mod download
 RUN go build -o auror cmd/auror/*
 
-FROM gcr.io/distroless/base-debian12:latest
+FROM gcr.io/distroless/base-debian13:latest
 
 COPY --from=builder /go/src/github.com/firebolt-db/firebolt-auror/auror /bin/auror
 
